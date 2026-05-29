@@ -33,6 +33,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "autoprefixer": "^10.5.0",
     "eslint": "9.39.1",
     "eslint-config-next": "16.0.8",
     "tailwindcss": "4.1.11",
