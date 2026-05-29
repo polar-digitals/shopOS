@@ -1,6 +1,0 @@
-{
-  "name": "ShopOS",
-  "description": "An elitely designed client dashboard and shop operations catalog system.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

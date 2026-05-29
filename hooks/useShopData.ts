@@ -1,23 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { createClient } from '@/lib/supabaseClient';
 
 export interface Worker {
   id: string;
   name: string;
   role: string;
-  isAtWork: boolean;
+  is_at_work: boolean;
 }
 
 export interface ShopService {
   id: string;
   name: string;
   price: number;
-  durationMin: number;
+  duration_min: number;
 }
 
 export interface Sale {
   id: string;
-  serviceName: string;
-  workerName: string;
+  service_name: string;
+  worker_name: string;
+  worker_id: string | null;
   date: string;
   price: number;
 }
@@ -30,128 +32,266 @@ export interface Expense {
   category: string;
 }
 
+export interface StaffPerformance {
+  workerId: string;
+  workerName: string;
+  todayCustomers: number;
+  todayRevenue: number;
+}
+
+const supabase = createClient();
+
+function getTodayStr(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
 export function useShopData() {
-  const [workers, setWorkers] = useState<Worker[]>([
-    { id: 'worker-1', name: 'Sarah Jenkins', role: 'Hair Stylist', isAtWork: true },
-    { id: 'worker-2', name: 'Michael Vance', role: 'Color Expert', isAtWork: true },
-    { id: 'worker-3', name: 'Elena Rostova', role: 'Nail Artist', isAtWork: false }
-  ]);
+  const [workers, setWorkers] = useState<Worker[]>([]);
+  const [services, setServices] = useState<ShopService[]>([]);
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [services, setServices] = useState<ShopService[]>([
-    { id: 'srv-1', name: 'Hair Cut & Style', price: 75, durationMin: 45 },
-    { id: 'srv-2', name: 'Balayage & Coloring', price: 180, durationMin: 120 },
-    { id: 'srv-3', name: 'Deep Moisture Treatment', price: 45, durationMin: 30 },
-    { id: 'srv-4', name: 'Gel Manicure', price: 60, durationMin: 60 }
-  ]);
+  // ── Fetch all data from Supabase ──
+  const fetchAll = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const [workersRes, servicesRes, salesRes, expensesRes] = await Promise.all([
+        supabase.from('workers').select('*').order('created_at', { ascending: true }),
+        supabase.from('services').select('*').order('created_at', { ascending: true }),
+        supabase.from('sales').select('*').order('created_at', { ascending: false }),
+        supabase.from('expenses').select('*').order('created_at', { ascending: false }),
+      ]);
 
-  const [sales, setSales] = useState<Sale[]>([
-    { id: 'sale-1', serviceName: 'Balayage & Coloring', workerName: 'Sarah Jenkins', date: '2026-05-27', price: 180 },
-    { id: 'sale-2', serviceName: 'Hair Cut & Style', workerName: 'Michael Vance', date: '2026-05-27', price: 75 },
-    { id: 'sale-3', serviceName: 'Gel Manicure', workerName: 'Elena Rostova', date: '2026-05-27', price: 60 }
-  ]);
-
-  const [expenses, setExpenses] = useState<Expense[]>([
-    { id: 'exp-1', item: 'Shampoo and Hair Dyes', amount: 410, date: '2026-05-25', category: 'Supplies' },
-    { id: 'exp-2', item: 'Electricity and Power bill', amount: 320, date: '2026-05-24', category: 'Bills' },
-    { id: 'exp-3', item: 'Towels and Chairs', amount: 285, date: '2026-05-20', category: 'Equipment' }
-  ]);
-
-  // Load state on start
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedWorkers = localStorage.getItem('shop_workers');
-      const storedServices = localStorage.getItem('shop_services');
-      const storedSales = localStorage.getItem('shop_sales');
-      const storedExpenses = localStorage.getItem('shop_expenses');
-
-      const timer = setTimeout(() => {
-        if (storedWorkers) setWorkers(JSON.parse(storedWorkers));
-        if (storedServices) setServices(JSON.parse(storedServices));
-        if (storedSales) setSales(JSON.parse(storedSales));
-        if (storedExpenses) setExpenses(JSON.parse(storedExpenses));
-      }, 0);
-      
-      return () => clearTimeout(timer);
+      if (workersRes.data) setWorkers(workersRes.data);
+      if (servicesRes.data) setServices(servicesRes.data);
+      if (salesRes.data) setSales(salesRes.data);
+      if (expensesRes.data) setExpenses(expensesRes.data);
+    } catch (err) {
+      console.error('Error fetching shop data:', err);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
-  const saveToStorage = (key: string, data: any) => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(key, JSON.stringify(data));
+  useEffect(() => {
+    fetchAll();
+  }, [fetchAll]);
+
+  // ── SALES CRUD ──
+  const addSale = async (sale: Omit<Sale, 'id'>) => {
+    // Resolve worker_id from worker name
+    const worker = workers.find(w => w.name === sale.worker_name);
+    const { data, error } = await supabase
+      .from('sales')
+      .insert({
+        service_name: sale.service_name,
+        worker_name: sale.worker_name,
+        worker_id: worker?.id || null,
+        date: sale.date,
+        price: sale.price,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding sale:', error);
+      return;
     }
+    if (data) setSales(prev => [data, ...prev]);
   };
 
-  const addSale = (sale: Sale) => {
-    const updated = [sale, ...sales];
-    setSales(updated);
-    saveToStorage('shop_sales', updated);
+  const updateSale = async (id: string, updates: Partial<Sale>) => {
+    const payload: Record<string, unknown> = {};
+    if (updates.service_name !== undefined) payload.service_name = updates.service_name;
+    if (updates.worker_name !== undefined) {
+      payload.worker_name = updates.worker_name;
+      const worker = workers.find(w => w.name === updates.worker_name);
+      payload.worker_id = worker?.id || null;
+    }
+    if (updates.date !== undefined) payload.date = updates.date;
+    if (updates.price !== undefined) payload.price = updates.price;
+
+    const { data, error } = await supabase
+      .from('sales')
+      .update(payload)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating sale:', error);
+      return;
+    }
+    if (data) setSales(prev => prev.map(s => s.id === id ? data : s));
   };
 
-  const updateSale = (id: string, updatedSale: Partial<Sale>) => {
-    const updated = sales.map(s => s.id === id ? { ...s, ...updatedSale } : s);
-    setSales(updated);
-    saveToStorage('shop_sales', updated);
+  const deleteSale = async (id: string) => {
+    const { error } = await supabase.from('sales').delete().eq('id', id);
+    if (error) {
+      console.error('Error deleting sale:', error);
+      return;
+    }
+    setSales(prev => prev.filter(s => s.id !== id));
   };
 
-  const deleteSale = (id: string) => {
-    const updated = sales.filter(s => s.id !== id);
-    setSales(updated);
-    saveToStorage('shop_sales', updated);
+  // ── EXPENSES CRUD ──
+  const addExpense = async (expense: Omit<Expense, 'id'>) => {
+    const { data, error } = await supabase
+      .from('expenses')
+      .insert({
+        item: expense.item,
+        amount: expense.amount,
+        date: expense.date,
+        category: expense.category,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding expense:', error);
+      return;
+    }
+    if (data) setExpenses(prev => [data, ...prev]);
   };
 
-  const addExpense = (expense: Expense) => {
-    const updated = [expense, ...expenses];
-    setExpenses(updated);
-    saveToStorage('shop_expenses', updated);
+  const deleteExpense = async (id: string) => {
+    const { error } = await supabase.from('expenses').delete().eq('id', id);
+    if (error) {
+      console.error('Error deleting expense:', error);
+      return;
+    }
+    setExpenses(prev => prev.filter(e => e.id !== id));
   };
 
-  const deleteExpense = (id: string) => {
-    const updated = expenses.filter(e => e.id !== id);
-    setExpenses(updated);
-    saveToStorage('shop_expenses', updated);
+  // ── WORKERS CRUD ──
+  const addWorker = async (worker: Omit<Worker, 'id'>) => {
+    const { data, error } = await supabase
+      .from('workers')
+      .insert({
+        name: worker.name,
+        role: worker.role,
+        is_at_work: worker.is_at_work,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding worker:', error);
+      return;
+    }
+    if (data) setWorkers(prev => [...prev, data]);
   };
 
-  const addWorker = (worker: Worker) => {
-    const updated = [...workers, worker];
-    setWorkers(updated);
-    saveToStorage('shop_workers', updated);
+  const updateWorker = async (id: string, updates: Partial<Worker>) => {
+    const payload: Record<string, unknown> = {};
+    if (updates.name !== undefined) payload.name = updates.name;
+    if (updates.role !== undefined) payload.role = updates.role;
+    if (updates.is_at_work !== undefined) payload.is_at_work = updates.is_at_work;
+
+    const { data, error } = await supabase
+      .from('workers')
+      .update(payload)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating worker:', error);
+      return;
+    }
+    if (data) setWorkers(prev => prev.map(w => w.id === id ? data : w));
   };
 
-  const updateWorker = (id: string, updatedWorker: Partial<Worker>) => {
-    const updated = workers.map(w => w.id === id ? { ...w, ...updatedWorker } : w);
-    setWorkers(updated);
-    saveToStorage('shop_workers', updated);
+  const deleteWorker = async (id: string) => {
+    const { error } = await supabase.from('workers').delete().eq('id', id);
+    if (error) {
+      console.error('Error deleting worker:', error);
+      return;
+    }
+    setWorkers(prev => prev.filter(w => w.id !== id));
   };
 
-  const deleteWorker = (id: string) => {
-    const updated = workers.filter(w => w.id !== id);
-    setWorkers(updated);
-    saveToStorage('shop_workers', updated);
+  // ── SERVICES CRUD ──
+  const addService = async (service: Omit<ShopService, 'id'>) => {
+    const { data, error } = await supabase
+      .from('services')
+      .insert({
+        name: service.name,
+        price: service.price,
+        duration_min: service.duration_min,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding service:', error);
+      return;
+    }
+    if (data) setServices(prev => [...prev, data]);
   };
 
-  const addService = (service: ShopService) => {
-    const updated = [...services, service];
-    setServices(updated);
-    saveToStorage('shop_services', updated);
+  const updateService = async (id: string, updates: Partial<ShopService>) => {
+    const payload: Record<string, unknown> = {};
+    if (updates.name !== undefined) payload.name = updates.name;
+    if (updates.price !== undefined) payload.price = updates.price;
+    if (updates.duration_min !== undefined) payload.duration_min = updates.duration_min;
+
+    const { data, error } = await supabase
+      .from('services')
+      .update(payload)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating service:', error);
+      return;
+    }
+    if (data) setServices(prev => prev.map(s => s.id === id ? data : s));
   };
 
-  const updateService = (id: string, updatedService: Partial<ShopService>) => {
-    const updated = services.map(s => s.id === id ? { ...s, ...updatedService } : s);
-    setServices(updated);
-    saveToStorage('shop_services', updated);
+  const deleteService = async (id: string) => {
+    const { error } = await supabase.from('services').delete().eq('id', id);
+    if (error) {
+      console.error('Error deleting service:', error);
+      return;
+    }
+    setServices(prev => prev.filter(s => s.id !== id));
   };
 
-  const deleteService = (id: string) => {
-    const updated = services.filter(s => s.id !== id);
-    setServices(updated);
-    saveToStorage('shop_services', updated);
-  };
+  // ── COMPUTED VALUES (Financial Sync) ──
+  const today = getTodayStr();
+
+  const totalIncome = sales.reduce((sum, s) => sum + Number(s.price), 0);
+  const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
+  const totalProfit = totalIncome - totalExpenses;
+
+  // Daily visits = actual count of sales logged today
+  const dailyCustomerCount = sales.filter(s => s.date === today).length;
+
+  // Staff performance: per-worker daily customers & revenue
+  const staffPerformance: StaffPerformance[] = workers.map(worker => {
+    const workerSalesToday = sales.filter(
+      s => s.worker_name === worker.name && s.date === today
+    );
+    return {
+      workerId: worker.id,
+      workerName: worker.name,
+      todayCustomers: workerSalesToday.length,
+      todayRevenue: workerSalesToday.reduce((sum, s) => sum + Number(s.price), 0),
+    };
+  });
 
   return {
+    // Data
     workers,
     services,
     sales,
     expenses,
+    isLoading,
+
+    // CRUD
     addSale,
     updateSale,
     deleteSale,
@@ -162,6 +302,17 @@ export function useShopData() {
     deleteWorker,
     addService,
     updateService,
-    deleteService
+    deleteService,
+
+    // Computed
+    totalIncome,
+    totalExpenses,
+    totalProfit,
+    dailyCustomerCount,
+    staffPerformance,
+    today,
+
+    // Refresh
+    refetch: fetchAll,
   };
 }

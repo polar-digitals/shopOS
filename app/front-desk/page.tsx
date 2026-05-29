@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Scissors, Pencil, X } from 'lucide-react';
-import { useShopData } from '@/hooks/useShopData';
+import { useShopData, type Sale } from '@/hooks/useShopData';
+import { createClient } from '@/lib/supabaseClient';
 
 export default function FrontDeskDashboard() {
   const router = useRouter();
@@ -13,14 +14,17 @@ export default function FrontDeskDashboard() {
     workers,
     services,
     sales,
+    isLoading,
     addSale,
     updateSale,
+    totalIncome,
+    today,
   } = useShopData();
 
   const [showAddSale, setShowAddSale] = useState(false);
   const [newSaleServiceName, setNewSaleServiceName] = useState('');
   const [newSaleWorkerName, setNewSaleWorkerName] = useState('');
-  const [newSaleDate, setNewSaleDate] = useState('2026-05-27');
+  const [newSaleDate, setNewSaleDate] = useState(today);
 
   // Editing state for sales
   const [editingSaleId, setEditingSaleId] = useState<string | null>(null);
@@ -41,36 +45,38 @@ export default function FrontDeskDashboard() {
     return () => clearTimeout(timer);
   }, [services, workers, newSaleServiceName, newSaleWorkerName]);
 
-  const handleLogout = () => {
-    document.cookie = 'shop_session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
     router.push('/login');
+    router.refresh();
   };
 
-  const handleAddSale = (e: React.FormEvent) => {
+  const handleAddSale = async (e: React.FormEvent) => {
     e.preventDefault();
     const servicePrice = services.find(s => s.name === newSaleServiceName)?.price || 50;
-    addSale({
-      id: `sale-${Date.now()}`,
-      serviceName: newSaleServiceName,
-      workerName: newSaleWorkerName,
+    await addSale({
+      service_name: newSaleServiceName,
+      worker_name: newSaleWorkerName,
+      worker_id: null,
       date: newSaleDate,
       price: servicePrice
     });
     setShowAddSale(false);
   };
 
-  const handleStartEditSale = (sale: any) => {
+  const handleStartEditSale = (sale: Sale) => {
     setEditingSaleId(sale.id);
-    setEditSaleServiceName(sale.serviceName);
-    setEditSaleWorkerName(sale.workerName);
+    setEditSaleServiceName(sale.service_name);
+    setEditSaleWorkerName(sale.worker_name);
     setEditSaleDate(sale.date);
   };
 
-  const handleSaveSale = (id: string) => {
+  const handleSaveSale = async (id: string) => {
     const servicePrice = services.find(s => s.name === editSaleServiceName)?.price || 50;
-    updateSale(id, {
-      serviceName: editSaleServiceName,
-      workerName: editSaleWorkerName,
+    await updateSale(id, {
+      service_name: editSaleServiceName,
+      worker_name: editSaleWorkerName,
       date: editSaleDate,
       price: servicePrice
     });
@@ -87,7 +93,31 @@ export default function FrontDeskDashboard() {
       .slice(0, 2);
   };
 
-  const totalEarned = sales.reduce((sum, s) => sum + s.price, 0);
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-white text-black font-sans flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex flex-col items-center gap-4"
+        >
+          <div className="text-xl font-black tracking-tight text-zinc-950">ShopOS</div>
+          <div className="flex gap-1">
+            {[0, 1, 2].map(i => (
+              <motion.div
+                key={i}
+                className="w-2 h-2 bg-zinc-400 rounded-full"
+                animate={{ opacity: [0.3, 1, 0.3] }}
+                transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+              />
+            ))}
+          </div>
+          <p className="text-xs text-zinc-500 font-mono">Loading front desk...</p>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white text-black font-sans antialiased pt-0 px-6 pb-6 sm:pt-0 sm:px-12 sm:pb-12 md:pt-0 md:px-16 md:pb-16 flex flex-col">
@@ -257,8 +287,8 @@ export default function FrontDeskDashboard() {
                           <td className="py-2 px-4 text-right text-zinc-400 italic">Auto-calculated</td>
                           <td className="py-2 px-4 text-center">
                             <div className="flex gap-1 justify-center">
-                              <button onClick={() => setEditingSaleId(null)} className="px-2 py-1 bg-zinc-200 hover:bg-zinc-300 rounded text-black font-bold">Cancel</button>
-                              <button onClick={() => handleSaveSale(item.id)} className="px-2 py-1 bg-black hover:bg-zinc-800 rounded text-white font-bold">Save</button>
+                              <button onClick={() => setEditingSaleId(null)} className="px-2 py-1 bg-zinc-200 hover:bg-zinc-300 rounded text-black font-bold cursor-pointer">Cancel</button>
+                              <button onClick={() => handleSaveSale(item.id)} className="px-2 py-1 bg-black hover:bg-zinc-800 rounded text-white font-bold cursor-pointer">Save</button>
                             </div>
                           </td>
                         </tr>
@@ -267,13 +297,13 @@ export default function FrontDeskDashboard() {
 
                     return (
                       <tr key={item.id} className="hover:bg-zinc-50 transition-colors text-black">
-                        <td className="py-3.5 px-4 font-semibold">{item.serviceName}</td>
+                        <td className="py-3.5 px-4 font-semibold">{item.service_name}</td>
                         <td className="py-3.5 px-4">
                           <span className="inline-flex items-center gap-2">
                             <span className="w-6 h-6 rounded-full border border-zinc-200 bg-white flex items-center justify-center text-[9px] font-bold text-black font-mono">
-                              {getInitials(item.workerName)}
+                              {getInitials(item.worker_name)}
                             </span>
-                            {item.workerName}
+                            {item.worker_name}
                           </span>
                         </td>
                         <td className="py-3.5 px-4 text-zinc-600 font-mono">{item.date}</td>
@@ -298,7 +328,7 @@ export default function FrontDeskDashboard() {
           <div className="text-[11px] text-zinc-500 font-mono flex justify-between items-center border-t border-zinc-100 pt-4">
             <span>Showing {sales.length} logs in history</span>
             <span className="font-sans text-xs text-black">
-              Total Revenue: <strong className="font-bold text-emerald-600">Br {totalEarned}</strong>
+              Total Revenue: <strong className="font-bold text-emerald-600">Br {totalIncome}</strong>
             </span>
           </div>
         </motion.div>

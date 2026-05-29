@@ -19,16 +19,18 @@ import {
   Home,
   Pencil,
   Menu,
-  X
+  X,
+  BarChart3
 } from 'lucide-react';
 
 import { useRouter } from 'next/navigation';
 import { useShopData } from '@/hooks/useShopData';
+import { createClient } from '@/lib/supabaseClient';
 
 export default function ShopOSDashboard() {
   const router = useRouter();
   // Navigation active tab
-  const [activeTab, setActiveTab] = useState<'overview' | 'catalog' | 'expenses' | 'team' | 'services'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'catalog' | 'expenses' | 'staff' | 'services'>('overview');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Use shared state hook
@@ -37,6 +39,7 @@ export default function ShopOSDashboard() {
     services,
     sales,
     expenses,
+    isLoading,
     addSale,
     updateSale,
     deleteSale,
@@ -47,7 +50,13 @@ export default function ShopOSDashboard() {
     deleteWorker,
     addService,
     updateService,
-    deleteService
+    deleteService,
+    totalIncome,
+    totalExpenses: totalSpent,
+    totalProfit,
+    dailyCustomerCount,
+    staffPerformance,
+    today,
   } = useShopData();
 
   // Form states to add new items (collapsible panels/simple toggles)
@@ -59,12 +68,12 @@ export default function ShopOSDashboard() {
   // Form input values
   const [newSaleServiceName, setNewSaleServiceName] = useState('');
   const [newSaleWorkerName, setNewSaleWorkerName] = useState('');
-  const [newSaleDate, setNewSaleDate] = useState('2026-05-27');
+  const [newSaleDate, setNewSaleDate] = useState(today);
 
   const [newExpenseItem, setNewExpenseItem] = useState('');
   const [newExpenseAmount, setNewExpenseAmount] = useState('');
   const [newExpenseCategory, setNewExpenseCategory] = useState('Supplies');
-  const [newExpenseDate, setNewExpenseDate] = useState('2026-05-27');
+  const [newExpenseDate, setNewExpenseDate] = useState(today);
 
   const [newWorkerName, setNewWorkerName] = useState('');
   const [newWorkerRole, setNewWorkerRole] = useState('');
@@ -88,19 +97,21 @@ export default function ShopOSDashboard() {
     return () => clearTimeout(timer);
   }, [services, workers, newSaleServiceName, newSaleWorkerName]);
 
-  const handleLogout = () => {
-    document.cookie = 'shop_session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
     router.push('/login');
+    router.refresh();
   };
 
   // Add Sale
-  const handleAddSale = (e: React.FormEvent) => {
+  const handleAddSale = async (e: React.FormEvent) => {
     e.preventDefault();
     const servicePrice = services.find(s => s.name === newSaleServiceName)?.price || 50;
-    addSale({
-      id: `sale-${Date.now()}`,
-      serviceName: newSaleServiceName,
-      workerName: newSaleWorkerName,
+    await addSale({
+      service_name: newSaleServiceName,
+      worker_name: newSaleWorkerName,
+      worker_id: null,
       date: newSaleDate,
       price: servicePrice
     });
@@ -108,11 +119,10 @@ export default function ShopOSDashboard() {
   };
 
   // Add Expense
-  const handleAddExpense = (e: React.FormEvent) => {
+  const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newExpenseItem.trim() || !newExpenseAmount) return;
-    addExpense({
-      id: `exp-${Date.now()}`,
+    await addExpense({
       item: newExpenseItem,
       amount: parseFloat(newExpenseAmount) || 0,
       date: newExpenseDate,
@@ -124,14 +134,13 @@ export default function ShopOSDashboard() {
   };
 
   // Add Worker
-  const handleAddWorker = (e: React.FormEvent) => {
+  const handleAddWorker = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newWorkerName.trim() || !newWorkerRole.trim()) return;
-    addWorker({
-      id: `worker-${Date.now()}`,
+    await addWorker({
       name: newWorkerName,
       role: newWorkerRole,
-      isAtWork: newWorkerIsAtWork
+      is_at_work: newWorkerIsAtWork
     });
     setNewWorkerName('');
     setNewWorkerRole('');
@@ -139,14 +148,13 @@ export default function ShopOSDashboard() {
   };
 
   // Add Service
-  const handleAddService = (e: React.FormEvent) => {
+  const handleAddService = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newServiceName.trim() || !newServicePrice || !newServiceDuration) return;
-    addService({
-      id: `srv-${Date.now()}`,
+    await addService({
       name: newServiceName,
       price: parseFloat(newServicePrice) || 0,
-      durationMin: parseInt(newServiceDuration) || 0
+      duration_min: parseInt(newServiceDuration) || 0
     });
     setNewServiceName('');
     setNewServicePrice('');
@@ -174,7 +182,7 @@ export default function ShopOSDashboard() {
   const toggleWorkerStatus = (id: string) => {
     const worker = workers.find(w => w.id === id);
     if (worker) {
-      updateWorker(id, { isAtWork: !worker.isAtWork });
+      updateWorker(id, { is_at_work: !worker.is_at_work });
     }
   };
 
@@ -182,7 +190,7 @@ export default function ShopOSDashboard() {
   const [editWorkerName, setEditWorkerName] = useState('');
   const [editWorkerRole, setEditWorkerRole] = useState('');
 
-  const handleStartEditWorker = (worker: any) => {
+  const handleStartEditWorker = (worker: Worker) => {
     setEditingWorkerId(worker.id);
     setEditWorkerName(worker.name);
     setEditWorkerRole(worker.role);
@@ -200,11 +208,11 @@ export default function ShopOSDashboard() {
   const [editServicePrice, setEditServicePrice] = useState('');
   const [editServiceDuration, setEditServiceDuration] = useState('');
 
-  const handleStartEditService = (service: any) => {
+  const handleStartEditService = (service: ShopService) => {
     setEditingServiceId(service.id);
     setEditServiceName(service.name);
     setEditServicePrice(service.price.toString());
-    setEditServiceDuration(service.durationMin.toString());
+    setEditServiceDuration(service.duration_min.toString());
   };
 
   const handleSaveService = (id: string) => {
@@ -212,15 +220,10 @@ export default function ShopOSDashboard() {
     updateService(id, {
       name: editServiceName,
       price: parseFloat(editServicePrice) || 0,
-      durationMin: parseInt(editServiceDuration) || 0
+      duration_min: parseInt(editServiceDuration) || 0
     });
     setEditingServiceId(null);
   };
-
-  // Financial and customer traffic calculations
-  const totalEarned = sales.reduce((sum, s) => sum + s.price, 0);
-  const totalSpent = expenses.reduce((sum, e) => sum + e.amount, 0);
-  const dailyVisits = sales.length * 2 + 5; // Simple dynamic estimate of daily customer stream
 
   // Helper to extract initials
   const getInitials = (fullName: string) => {
@@ -232,16 +235,44 @@ export default function ShopOSDashboard() {
       .slice(0, 2);
   };
 
-  const totalProfit = totalEarned - totalSpent;
+  // Worker/Service type aliases for local use
+  type Worker = { id: string; name: string; role: string; is_at_work: boolean };
+  type ShopService = { id: string; name: string; price: number; duration_min: number };
 
   // Tabs structure definition
   const tabs = [
     { id: 'overview', label: 'Overview', icon: <Home className="w-3.5 h-3.5" /> },
     { id: 'catalog', label: 'Catalog', icon: <Check className="w-3.5 h-3.5" /> },
     { id: 'expenses', label: 'Expenses', icon: <CreditCard className="w-3.5 h-3.5" /> },
-    { id: 'team', label: 'Team', icon: <Users className="w-3.5 h-3.5" /> },
+    { id: 'staff', label: 'Staff', icon: <Users className="w-3.5 h-3.5" /> },
     { id: 'services', label: 'Services', icon: <Scissors className="w-3.5 h-3.5" /> },
   ];
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-white text-black font-sans flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex flex-col items-center gap-4"
+        >
+          <div className="text-xl font-black tracking-tight text-zinc-950">ShopOS</div>
+          <div className="flex gap-1">
+            {[0, 1, 2].map(i => (
+              <motion.div
+                key={i}
+                className="w-2 h-2 bg-zinc-400 rounded-full"
+                animate={{ opacity: [0.3, 1, 0.3] }}
+                transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+              />
+            ))}
+          </div>
+          <p className="text-xs text-zinc-500 font-mono">Loading dashboard...</p>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white text-black font-sans antialiased pt-0 px-6 pb-6 sm:pt-0 sm:px-12 sm:pb-12 md:pt-0 md:px-16 md:pb-16 flex flex-col">
@@ -361,7 +392,7 @@ export default function ShopOSDashboard() {
                         <TrendingUp className="w-4 h-4" />
                       </div>
                     </div>
-                    <h2 className="text-3xl font-black tracking-tight mb-2 font-mono">Br {totalEarned.toLocaleString()}</h2>
+                    <h2 className="text-3xl font-black tracking-tight mb-2 font-mono">Br {totalIncome.toLocaleString()}</h2>
                     <p className="text-zinc-500 text-[11px] leading-relaxed">
                       Income earned from services sales this month.
                     </p>
@@ -406,10 +437,10 @@ export default function ShopOSDashboard() {
                       </div>
                     </div>
                     <h2 className="text-3xl font-black tracking-tight mb-2 font-mono">
-                      {dailyVisits}
+                      {dailyCustomerCount}
                     </h2>
                     <p className="text-zinc-500 text-[11px] leading-relaxed">
-                      Estimated human traffic handled by team today.
+                      Customers served by your staff today.
                     </p>
                   </div>
 
@@ -434,8 +465,8 @@ export default function ShopOSDashboard() {
                         <tbody className="divide-y divide-zinc-100">
                           {sales.slice(0, 5).map((item) => (
                             <tr key={item.id} className="text-zinc-800 hover:bg-zinc-50 transition-colors">
-                              <td className="py-3 px-4 font-semibold text-black">{item.serviceName}</td>
-                              <td className="py-3 px-4 text-zinc-500">{item.workerName}</td>
+                              <td className="py-3 px-4 font-semibold text-black">{item.service_name}</td>
+                              <td className="py-3 px-4 text-zinc-500">{item.worker_name}</td>
                               <td className="py-3 px-4 text-right font-bold text-emerald-600">+Br {item.price}</td>
                             </tr>
                           ))}
@@ -601,13 +632,13 @@ export default function ShopOSDashboard() {
                       ) : (
                         sales.map((item) => (
                           <tr key={item.id} className="hover:bg-zinc-50 transition-colors text-black">
-                            <td className="py-3.5 px-4 font-semibold">{item.serviceName}</td>
+                            <td className="py-3.5 px-4 font-semibold">{item.service_name}</td>
                             <td className="py-3.5 px-4">
                               <span className="inline-flex items-center gap-2">
                                 <span className="w-6 h-6 rounded-full border border-zinc-200 bg-white flex items-center justify-center text-[9px] font-bold text-black font-mono">
-                                  {getInitials(item.workerName)}
+                                  {getInitials(item.worker_name)}
                                 </span>
-                                {item.workerName}
+                                {item.worker_name}
                               </span>
                             </td>
                             <td className="py-3.5 px-4 text-zinc-600 font-mono">{item.date}</td>
@@ -631,7 +662,7 @@ export default function ShopOSDashboard() {
                 <div className="text-[11px] text-zinc-500 font-mono flex justify-between items-center border-t border-zinc-100 pt-4">
                   <span>Showing {sales.length} logs in history</span>
                   <span className="font-sans text-xs text-black">
-                    Total Revenue: <strong className="font-bold text-emerald-600">Br {totalEarned}</strong>
+                    Total Revenue: <strong className="font-bold text-emerald-600">Br {totalIncome}</strong>
                   </span>
                 </div>
               </div>
@@ -726,7 +757,7 @@ export default function ShopOSDashboard() {
                         <button 
                           type="button" 
                           onClick={() => setShowAddExpense(false)} 
-                          className="bg-white border border-zinc-35 hover:bg-zinc-100 text-black py-1.5 px-3 rounded font-bold text-[10px] transition-colors cursor-pointer"
+                          className="bg-white border border-zinc-300 hover:bg-zinc-100 text-black py-1.5 px-3 rounded font-bold text-[10px] transition-colors cursor-pointer"
                         >
                           Cancel
                         </button>
@@ -770,7 +801,7 @@ export default function ShopOSDashboard() {
                               </span>
                             </td>
                             <td className="py-3.5 px-4 text-zinc-600 font-mono">{exp.date}</td>
-                            <td className="py-3.5 px-4 text-right font-bold font-mono text-red-650">-Br {exp.amount}</td>
+                            <td className="py-3.5 px-4 text-right font-bold font-mono text-red-600">-Br {exp.amount}</td>
                             <td className="py-3.5 px-4 text-center">
                               <button 
                                 onClick={() => handleDeleteExpense(exp.id)}
@@ -790,30 +821,30 @@ export default function ShopOSDashboard() {
                 <div className="text-[11px] text-zinc-500 font-mono flex justify-between items-center border-t border-zinc-100 pt-4">
                   <span>Showing {expenses.length} shop costs</span>
                   <span className="font-sans text-xs text-black">
-                    Total Expenses: <strong className="font-bold text-red-650">-Br {totalSpent}</strong>
+                    Total Expenses: <strong className="font-bold text-red-600">-Br {totalSpent}</strong>
                   </span>
                 </div>
               </div>
             )}
 
-            {/* -------------------- TEAM TAB -------------------- */}
-            {activeTab === 'team' && (
+            {/* -------------------- STAFF TAB (formerly Team) -------------------- */}
+            {activeTab === 'staff' && (
               <div className="flex flex-col gap-6">
-                <div className="flex justify-between items-center border-b border-zinc-100 pb-5">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-zinc-100 pb-5">
                   <div>
                     <h3 className="text-2xl font-black text-black flex items-center gap-2">
                       <Users className="w-5 h-5" />
-                      Team
+                      Staff
                     </h3>
                     <p className="text-zinc-500 text-xs mt-1">
-                      Check who is currently working or away today.
+                      Track who is working and their daily performance.
                     </p>
                   </div>
                   <button 
                     onClick={() => setShowAddWorker(!showAddWorker)}
-                    className="bg-black hover:bg-zinc-800 text-white font-bold text-[10px] py-1.5 px-3 rounded transition-colors cursor-pointer"
+                    className="bg-black hover:bg-zinc-800 text-white font-bold text-[10px] py-1.5 px-3 rounded transition-colors cursor-pointer self-stretch sm:self-auto text-center"
                   >
-                    {showAddWorker ? 'Cancel' : 'Add Worker'}
+                    {showAddWorker ? 'Cancel' : 'Add Staff Member'}
                   </button>
                 </div>
 
@@ -828,9 +859,9 @@ export default function ShopOSDashboard() {
                       exit={{ height: 0, opacity: 0 }}
                       className="bg-zinc-50 p-5 rounded-xl overflow-hidden flex flex-col gap-4 font-sans text-xs"
                     >
-                      <div className="text-xs font-bold border-b border-zinc-200 pb-2 mb-1">Add a New Worker</div>
+                      <div className="text-xs font-bold border-b border-zinc-200 pb-2 mb-1">Add a New Staff Member</div>
                       <div>
-                        <label className="block uppercase text-[10px] font-bold text-zinc-600 mb-1">Worker Name</label>
+                        <label className="block uppercase text-[10px] font-bold text-zinc-600 mb-1">Staff Name</label>
                         <input 
                           type="text" 
                           value={newWorkerName} 
@@ -876,117 +907,162 @@ export default function ShopOSDashboard() {
                           type="submit" 
                           className="bg-black text-white py-1.5 px-3 rounded font-bold text-[10px] cursor-pointer"
                         >
-                          Add Worker
+                          Add Staff Member
                         </button>
                       </div>
                     </motion.form>
                   )}
                 </AnimatePresence>
 
-                {/* Workers List */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {workers.map((worker) => {
-                    const isEditing = editingWorkerId === worker.id;
-                    if (isEditing) {
-                      return (
-                        <div 
-                          key={worker.id}
-                          className="flex flex-col gap-3.5 p-4 rounded-xl border border-zinc-200 bg-zinc-50/50 transition-all font-sans"
-                        >
-                          <div className="text-[10px] font-black text-zinc-500 uppercase tracking-wider">Edit Team Member</div>
-                          <div className="flex flex-col gap-2">
-                            <div>
-                              <label className="text-[9px] uppercase font-bold text-zinc-400 mb-0.5 block">Full Name</label>
-                              <input 
-                                type="text"
-                                value={editWorkerName}
-                                onChange={(e) => setEditWorkerName(e.target.value)}
-                                className="w-full bg-white border border-zinc-200 rounded px-2.5 py-1.5 text-xs outline-none focus:border-black text-black font-semibold"
-                                required
-                              />
-                            </div>
-                            <div>
-                              <label className="text-[9px] uppercase font-bold text-zinc-400 mb-0.5 block">Role / Job Title</label>
-                              <input 
-                                type="text"
-                                value={editWorkerRole}
-                                onChange={(e) => setEditWorkerRole(e.target.value)}
-                                className="w-full bg-white border border-zinc-200 rounded px-2.5 py-1.5 text-xs outline-none focus:border-black text-black font-semibold"
-                                required
-                              />
-                            </div>
-                          </div>
-                          <div className="flex justify-end gap-2 mt-1">
-                            <button 
-                              type="button" 
-                              onClick={() => setEditingWorkerId(null)}
-                              className="px-2.5 py-1 border border-zinc-300 hover:bg-zinc-100 rounded text-[9px] font-bold text-zinc-700 cursor-pointer transition-colors"
-                            >
-                              Cancel
-                            </button>
-                            <button 
-                              type="button" 
-                              onClick={() => handleSaveWorker(worker.id)}
-                              className="px-2.5 py-1 bg-black hover:bg-zinc-800 text-white rounded text-[9px] font-bold cursor-pointer transition-colors"
-                            >
-                              Save Changes
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    }
+                {/* Staff Table — one row per staff member with performance */}
+                <div className="overflow-x-auto bg-zinc-50/20 rounded-xl border border-zinc-100">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-zinc-100 text-[10px] font-bold uppercase tracking-wider bg-zinc-50/55 text-zinc-600">
+                        <th className="py-3 px-4">Staff Member</th>
+                        <th className="py-3 px-4">Role</th>
+                        <th className="py-3 px-4 text-center">Status</th>
+                        <th className="py-3 px-4 text-center">
+                          <span className="inline-flex items-center gap-1">
+                            <BarChart3 className="w-3 h-3" />
+                            Today&apos;s Customers
+                          </span>
+                        </th>
+                        <th className="py-3 px-4 text-right">Today&apos;s Revenue</th>
+                        <th className="py-3 px-4 text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100">
+                      {workers.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-8 text-center text-zinc-400 font-mono">
+                            No staff members yet. Add your first team member!
+                          </td>
+                        </tr>
+                      ) : (
+                        workers.map((worker) => {
+                          const isEditing = editingWorkerId === worker.id;
+                          const perf = staffPerformance.find(p => p.workerId === worker.id);
 
-                    return (
-                      <div 
-                        key={worker.id}
-                        className="flex items-center justify-between p-4 rounded-xl border border-zinc-100 bg-zinc-50/20 hover:border-zinc-300 transition-all select-none"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="relative">
-                            {/* Generates text-based initials circle */}
-                            <div className="w-10 h-10 rounded-full border border-zinc-200 bg-white flex items-center justify-center font-black text-xs text-black font-mono">
-                              {getInitials(worker.name)}
-                            </div>
-                            <span className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 border-2 border-white rounded-full ${
-                              worker.isAtWork ? 'bg-emerald-500' : 'bg-zinc-400'
-                            }`} />
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-sm text-black">{worker.name}</h4>
-                            <p className="text-[11px] text-zinc-500 font-mono mt-0.5">{worker.role}</p>
-                          </div>
-                        </div>
+                          if (isEditing) {
+                            return (
+                              <tr key={worker.id} className="bg-zinc-50">
+                                <td className="py-2.5 px-4" colSpan={2}>
+                                  <div className="flex flex-col gap-2">
+                                    <div>
+                                      <label className="text-[9px] uppercase font-bold text-zinc-400 mb-0.5 block">Full Name</label>
+                                      <input 
+                                        type="text"
+                                        value={editWorkerName}
+                                        onChange={(e) => setEditWorkerName(e.target.value)}
+                                        className="w-full bg-white border border-zinc-200 rounded px-2.5 py-1.5 text-xs outline-none focus:border-black text-black font-semibold"
+                                        required
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-[9px] uppercase font-bold text-zinc-400 mb-0.5 block">Role / Job Title</label>
+                                      <input 
+                                        type="text"
+                                        value={editWorkerRole}
+                                        onChange={(e) => setEditWorkerRole(e.target.value)}
+                                        className="w-full bg-white border border-zinc-200 rounded px-2.5 py-1.5 text-xs outline-none focus:border-black text-black font-semibold"
+                                        required
+                                      />
+                                    </div>
+                                  </div>
+                                </td>
+                                <td colSpan={2}></td>
+                                <td colSpan={2} className="py-2.5 px-4 text-right">
+                                  <div className="flex gap-2 justify-end">
+                                    <button 
+                                      type="button" 
+                                      onClick={() => setEditingWorkerId(null)}
+                                      className="px-2.5 py-1 border border-zinc-300 hover:bg-zinc-100 rounded text-[9px] font-bold text-zinc-700 cursor-pointer transition-colors"
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button 
+                                      type="button" 
+                                      onClick={() => handleSaveWorker(worker.id)}
+                                      className="px-2.5 py-1 bg-black hover:bg-zinc-800 text-white rounded text-[9px] font-bold cursor-pointer transition-colors"
+                                    >
+                                      Save
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          }
 
-                        <div className="flex items-center gap-2">
-                          <button 
-                            onClick={() => toggleWorkerStatus(worker.id)}
-                            className={`text-[10px] font-bold px-2 py-1 rounded transition-colors cursor-pointer ${
-                              worker.isAtWork 
-                                ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-150' 
-                                : 'bg-zinc-50 hover:bg-zinc-100 text-zinc-600 border border-zinc-200'
-                            }`}
-                            title="Click to toggle work status"
-                          >
-                            {worker.isAtWork ? 'At Work' : 'Away'}
-                          </button>
-                          <button 
-                            onClick={() => handleStartEditWorker(worker)}
-                            className="text-zinc-400 hover:text-black transition-colors p-1 cursor-pointer"
-                            title="Edit this team member"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteWorker(worker.id)}
-                            className="text-zinc-400 hover:text-red-500 transition-colors p-1 cursor-pointer"
-                            title="Delete this team member"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
+                          return (
+                            <tr key={worker.id} className="hover:bg-zinc-50 transition-colors text-black">
+                              <td className="py-3.5 px-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="relative">
+                                    <div className="w-8 h-8 rounded-full border border-zinc-200 bg-white flex items-center justify-center font-black text-[10px] text-black font-mono">
+                                      {getInitials(worker.name)}
+                                    </div>
+                                    <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 border-2 border-white rounded-full ${
+                                      worker.is_at_work ? 'bg-emerald-500' : 'bg-zinc-400'
+                                    }`} />
+                                  </div>
+                                  <span className="font-bold text-sm">{worker.name}</span>
+                                </div>
+                              </td>
+                              <td className="py-3.5 px-4 text-zinc-500 font-mono text-[11px]">{worker.role}</td>
+                              <td className="py-3.5 px-4 text-center">
+                                <button 
+                                  onClick={() => toggleWorkerStatus(worker.id)}
+                                  className={`text-[10px] font-bold px-2.5 py-1 rounded transition-colors cursor-pointer ${
+                                    worker.is_at_work 
+                                      ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200' 
+                                      : 'bg-zinc-50 hover:bg-zinc-100 text-zinc-600 border border-zinc-200'
+                                  }`}
+                                  title="Click to toggle work status"
+                                >
+                                  {worker.is_at_work ? 'At Work' : 'Away'}
+                                </button>
+                              </td>
+                              <td className="py-3.5 px-4 text-center">
+                                <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-zinc-100 font-black text-sm text-black font-mono">
+                                  {perf?.todayCustomers ?? 0}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-4 text-right font-bold font-mono text-emerald-600">
+                                {(perf?.todayRevenue ?? 0) > 0 ? `+Br ${perf?.todayRevenue}` : 'Br 0'}
+                              </td>
+                              <td className="py-3.5 px-4 text-center">
+                                <div className="flex items-center justify-center gap-1">
+                                  <button 
+                                    onClick={() => handleStartEditWorker(worker)}
+                                    className="text-zinc-400 hover:text-black transition-colors p-1 cursor-pointer"
+                                    title="Edit this staff member"
+                                  >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button 
+                                    onClick={() => handleDeleteWorker(worker.id)}
+                                    className="text-zinc-400 hover:text-red-500 transition-colors p-1 cursor-pointer"
+                                    title="Delete this staff member"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Staff summary footer */}
+                <div className="text-[11px] text-zinc-500 font-mono flex justify-between items-center border-t border-zinc-100 pt-4">
+                  <span>{workers.length} staff member{workers.length !== 1 ? 's' : ''} · {workers.filter(w => w.is_at_work).length} at work</span>
+                  <span className="font-sans text-xs text-black">
+                    Today&apos;s Total: <strong className="font-bold text-emerald-600">{dailyCustomerCount} customer{dailyCustomerCount !== 1 ? 's' : ''}</strong>
+                  </span>
                 </div>
               </div>
             )}
@@ -1145,7 +1221,7 @@ export default function ShopOSDashboard() {
                         <div key={srv.id} className="flex items-center justify-between p-4 hover:bg-zinc-50 transition-colors">
                           <div>
                             <div className="font-bold text-sm text-black">{srv.name}</div>
-                            <div className="text-[10px] text-zinc-500 font-mono mt-1">{srv.durationMin} minutes duration</div>
+                            <div className="text-[10px] text-zinc-500 font-mono mt-1">{srv.duration_min} minutes duration</div>
                           </div>
                           <div className="flex items-center gap-3">
                             <span className="font-mono font-bold text-base text-emerald-600 mr-2">Br {srv.price}</span>
