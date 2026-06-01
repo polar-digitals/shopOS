@@ -3,12 +3,18 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Scissors, Pencil, X } from 'lucide-react';
+import { Plus, Scissors, Pencil, X, LogOut } from 'lucide-react';
 import { useShopData, type Sale } from '@/hooks/useShopData';
 import { createClient } from '@/lib/supabaseClient';
 
 export default function FrontDeskDashboard() {
   const router = useRouter();
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push('/');
+  };
 
   const {
     workers,
@@ -44,13 +50,6 @@ export default function FrontDeskDashboard() {
     }, 0);
     return () => clearTimeout(timer);
   }, [services, workers, newSaleServiceName, newSaleWorkerName]);
-
-  const handleLogout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push('/login');
-    router.refresh();
-  };
 
   const handleAddSale = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,22 +119,23 @@ export default function FrontDeskDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-white text-black font-sans antialiased pt-0 px-6 pb-6 sm:pt-0 sm:px-12 sm:pb-12 md:pt-0 md:px-16 md:pb-16 flex flex-col">
+    <div className="min-h-screen bg-white text-black font-sans antialiased pt-0 px-4 pb-4 sm:pt-0 sm:px-12 sm:pb-12 md:pt-0 md:px-16 md:pb-16 flex flex-col">
       {/* Top Navbar */}
-      <div className="relative z-50 max-w-7xl mx-auto w-full flex flex-col sm:flex-row sm:items-center sm:justify-between pt-6 pb-6 mb-8 border-b border-zinc-100">
-        <div className="flex items-center justify-between w-full sm:w-auto">
-          <div className="text-xl font-black tracking-tight text-zinc-950 flex items-center gap-2">
-            ShopOS <span className="text-xs font-medium text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded-full">Front Desk</span>
+      <div className="relative z-50 max-w-7xl mx-auto w-full flex flex-row items-center justify-between pt-4 pb-4 mb-4 sm:pt-6 sm:pb-6 sm:mb-8 border-b border-zinc-100">
+        <div className="flex items-center justify-start w-auto">
+          <div className="text-lg sm:text-xl font-black tracking-tight text-zinc-950 flex items-center gap-2">
+            ShopOS <span className="text-[10px] sm:text-xs font-medium text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded-full">Front Desk</span>
           </div>
         </div>
-        <nav className="flex bg-transparent items-center gap-1 border-0 mt-4 sm:mt-0">
+        <div className="flex items-center justify-end w-auto">
           <button
             onClick={handleLogout}
-            className="relative px-4 py-2 text-xs border border-zinc-200 rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1.5 z-10 outline-none text-zinc-600 hover:text-black hover:bg-zinc-50 font-medium"
+            className="text-xs font-bold text-zinc-500 hover:text-red-600 transition-colors cursor-pointer flex items-center gap-1.5"
           >
-            Logout
+            <LogOut className="w-4 h-4" />
+            <span className="hidden sm:inline">Log out</span>
           </button>
-        </nav>
+        </div>
       </div>
 
       <div className="max-w-7xl mx-auto w-full flex-1">
@@ -144,19 +144,19 @@ export default function FrontDeskDashboard() {
           animate={{ opacity: 1, y: 0 }}
           className="flex flex-col gap-6"
         >
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-zinc-100 pb-5">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 border-b border-zinc-100 pb-3 sm:pb-5">
             <div>
-              <h3 className="text-2xl font-black text-black flex items-center gap-2">
-                <Scissors className="w-5 h-5" />
+              <h3 className="text-xl sm:text-2xl font-black text-black flex items-center gap-1.5 sm:gap-2">
+                <Scissors className="w-4 h-4 sm:w-5 sm:h-5" />
                 Catalog
               </h3>
-              <p className="text-zinc-500 text-xs mt-1">
+              <p className="text-zinc-500 text-[10px] sm:text-xs mt-1">
                 Record services done for our customers.
               </p>
             </div>
             <button 
               onClick={() => setShowAddSale(!showAddSale)}
-              className="bg-black hover:bg-zinc-800 text-white font-bold text-xs py-2 px-4 rounded transition-colors cursor-pointer flex items-center gap-1.5 self-stretch sm:self-auto justify-center"
+              className="bg-black hover:bg-zinc-800 text-white font-bold text-[10px] sm:text-xs py-1.5 sm:py-2 px-3 sm:px-4 rounded transition-colors cursor-pointer flex items-center gap-1.5 self-stretch sm:self-auto justify-center"
             >
               {showAddSale ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
               {showAddSale ? 'Close Form' : 'Log a Sale'}
@@ -172,9 +172,9 @@ export default function FrontDeskDashboard() {
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                className="bg-zinc-50 p-5 rounded-xl overflow-hidden flex flex-col gap-4 font-sans text-xs"
+                className="bg-zinc-50 p-4 sm:p-5 rounded-xl overflow-hidden flex flex-col gap-3 sm:gap-4 font-sans text-xs"
               >
-                <div className="text-sm font-bold border-b border-zinc-200 pb-2 mb-1">Add a New Service Record</div>
+                <div className="text-xs sm:text-sm font-bold border-b border-zinc-200 pb-2 mb-1">Add a New Service Record</div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block uppercase text-[10px] font-bold text-zinc-600 mb-1">Which service was done?</label>
@@ -236,12 +236,12 @@ export default function FrontDeskDashboard() {
           <div className="overflow-x-auto bg-zinc-50/20 rounded-xl">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-zinc-100 text-[10px] font-bold uppercase tracking-wider bg-zinc-50/55 text-zinc-600">
-                  <th className="py-3 px-4">Service Done</th>
-                  <th className="py-3 px-4">Worker Assigned</th>
-                  <th className="py-3 px-4 font-mono">Date</th>
-                  <th className="py-3 px-4 text-right">Price</th>
-                  <th className="py-3 px-4 text-center">Actions</th>
+                <tr className="border-b border-zinc-100 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider bg-zinc-50/55 text-zinc-600">
+                  <th className="py-2 px-2 sm:py-3 sm:px-4">Service Done</th>
+                  <th className="py-2 px-2 sm:py-3 sm:px-4">Worker Assigned</th>
+                  <th className="py-2 px-2 sm:py-3 sm:px-4 font-mono hidden sm:table-cell">Date</th>
+                  <th className="py-2 px-2 sm:py-3 sm:px-4 text-right">Price</th>
+                  <th className="py-2 px-2 sm:py-3 sm:px-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
@@ -258,37 +258,41 @@ export default function FrontDeskDashboard() {
                     if (isEditing) {
                       return (
                         <tr key={item.id} className="bg-zinc-50">
-                          <td className="py-2 px-4">
-                            <select 
-                              value={editSaleServiceName}
-                              onChange={(e) => setEditSaleServiceName(e.target.value)}
-                              className="w-full bg-white border border-zinc-200 rounded px-2 py-1.5 text-xs outline-none focus:border-black text-black"
-                            >
-                              {services.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-                            </select>
-                          </td>
-                          <td className="py-2 px-4">
-                            <select 
-                              value={editSaleWorkerName}
-                              onChange={(e) => setEditSaleWorkerName(e.target.value)}
-                              className="w-full bg-white border border-zinc-200 rounded px-2 py-1.5 text-xs outline-none focus:border-black text-black"
-                            >
-                              {workers.map(w => <option key={w.id} value={w.name}>{w.name}</option>)}
-                            </select>
-                          </td>
-                          <td className="py-2 px-4">
-                            <input 
-                              type="date" 
-                              value={editSaleDate} 
-                              onChange={(e) => setEditSaleDate(e.target.value)}
-                              className="w-full bg-white border border-zinc-200 rounded px-2 py-1.5 text-xs outline-none focus:border-black text-black font-mono"
-                            />
-                          </td>
-                          <td className="py-2 px-4 text-right text-zinc-400 italic">Auto-calculated</td>
-                          <td className="py-2 px-4 text-center">
-                            <div className="flex gap-1 justify-center">
-                              <button onClick={() => setEditingSaleId(null)} className="px-2 py-1 bg-zinc-200 hover:bg-zinc-300 rounded text-black font-bold cursor-pointer">Cancel</button>
-                              <button onClick={() => handleSaveSale(item.id)} className="px-2 py-1 bg-black hover:bg-zinc-800 rounded text-white font-bold cursor-pointer">Save</button>
+                          <td className="py-2.5 px-2 sm:px-4" colSpan={5}>
+                            <div className="flex flex-col sm:flex-row gap-2">
+                              <div className="flex-1">
+                                <label className="text-[9px] uppercase font-bold text-zinc-400 mb-0.5 block">Service</label>
+                                <select 
+                                  value={editSaleServiceName}
+                                  onChange={(e) => setEditSaleServiceName(e.target.value)}
+                                  className="w-full bg-white border border-zinc-200 rounded px-2.5 py-1.5 text-xs outline-none focus:border-black text-black"
+                                >
+                                  {services.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                                </select>
+                              </div>
+                              <div className="flex-1">
+                                <label className="text-[9px] uppercase font-bold text-zinc-400 mb-0.5 block">Worker</label>
+                                <select 
+                                  value={editSaleWorkerName}
+                                  onChange={(e) => setEditSaleWorkerName(e.target.value)}
+                                  className="w-full bg-white border border-zinc-200 rounded px-2.5 py-1.5 text-xs outline-none focus:border-black text-black"
+                                >
+                                  {workers.map(w => <option key={w.id} value={w.name}>{w.name}</option>)}
+                                </select>
+                              </div>
+                              <div className="flex-1">
+                                <label className="text-[9px] uppercase font-bold text-zinc-400 mb-0.5 block">Date</label>
+                                <input 
+                                  type="date" 
+                                  value={editSaleDate} 
+                                  onChange={(e) => setEditSaleDate(e.target.value)}
+                                  className="w-full bg-white border border-zinc-200 rounded px-2.5 py-1.5 text-xs outline-none focus:border-black text-black font-mono"
+                                />
+                              </div>
+                              <div className="flex items-end justify-end gap-2 mt-2 sm:mt-0">
+                                <button onClick={() => setEditingSaleId(null)} className="px-2.5 py-2 sm:py-1.5 bg-zinc-200 hover:bg-zinc-300 rounded text-[10px] text-black font-bold cursor-pointer">Cancel</button>
+                                <button onClick={() => handleSaveSale(item.id)} className="px-2.5 py-2 sm:py-1.5 bg-black hover:bg-zinc-800 rounded text-[10px] text-white font-bold cursor-pointer">Save</button>
+                              </div>
                             </div>
                           </td>
                         </tr>
@@ -296,19 +300,14 @@ export default function FrontDeskDashboard() {
                     }
 
                     return (
-                      <tr key={item.id} className="hover:bg-zinc-50 transition-colors text-black">
-                        <td className="py-3.5 px-4 font-semibold">{item.service_name}</td>
-                        <td className="py-3.5 px-4">
-                          <span className="inline-flex items-center gap-2">
-                            <span className="w-6 h-6 rounded-full border border-zinc-200 bg-white flex items-center justify-center text-[9px] font-bold text-black font-mono">
-                              {getInitials(item.worker_name)}
-                            </span>
-                            {item.worker_name}
-                          </span>
+                      <tr key={item.id} className="hover:bg-zinc-50 transition-colors text-black text-[10px] sm:text-xs">
+                        <td className="py-2 px-2 sm:py-3.5 sm:px-4 font-semibold">{item.service_name}</td>
+                        <td className="py-2 px-2 sm:py-3.5 sm:px-4">
+                          <span className="truncate max-w-[80px] sm:max-w-[none] block">{item.worker_name}</span>
                         </td>
-                        <td className="py-3.5 px-4 text-zinc-600 font-mono">{item.date}</td>
-                        <td className="py-3.5 px-4 text-right font-bold font-mono text-emerald-600">+Br {item.price}</td>
-                        <td className="py-3.5 px-4 text-center">
+                        <td className="py-2 px-2 sm:py-3.5 sm:px-4 text-zinc-600 font-mono hidden sm:table-cell">{item.date}</td>
+                        <td className="py-2 px-2 sm:py-3.5 sm:px-4 text-right font-bold font-mono text-emerald-600">+Br {item.price}</td>
+                        <td className="py-2 px-2 sm:py-3.5 sm:px-4 text-center">
                           <button 
                             onClick={() => handleStartEditSale(item)}
                             className="text-zinc-400 hover:text-black transition-colors p-1 cursor-pointer"
