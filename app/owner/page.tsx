@@ -278,7 +278,7 @@ export default function ShopOSDashboard() {
     <div className="min-h-screen bg-white text-black font-sans antialiased pt-0 px-4 pb-4 sm:pt-0 sm:px-12 sm:pb-12 md:pt-0 md:px-16 md:pb-16 flex flex-col">
       
       {/* Top Transparent Navbar with ShopOS brand built-in */}
-      <div className="relative z-50 max-w-7xl mx-auto w-full pt-4 pb-4 mb-4 sm:pt-6 sm:pb-6 sm:mb-8 border-b border-zinc-100">
+      <div className="sticky top-0 z-50 bg-white max-w-7xl mx-auto w-full pt-4 pb-4 mb-4 sm:pt-6 sm:pb-6 sm:mb-8 border-b border-zinc-100">
         <div className="flex items-center w-full">
           {/* Logo Container (Left) */}
           <div className="flex-1 flex justify-start">
@@ -1062,7 +1062,7 @@ export default function ShopOSDashboard() {
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 border-b border-zinc-100 pb-3 sm:pb-5">
                   <div>
                     <h3 className="text-xl sm:text-2xl font-black text-black flex items-center gap-1.5 sm:gap-2">
-                      <Scissors className="w-4 h-4 sm:w-5 sm:h-5 animate-pulse" />
+                      <Scissors className="w-4 h-4 sm:w-5 sm:h-5" />
                       Services
                     </h3>
                     <p className="text-zinc-500 text-[10px] sm:text-xs mt-1">
@@ -1071,7 +1071,7 @@ export default function ShopOSDashboard() {
                   </div>
                   <button 
                     onClick={() => setShowAddService(!showAddService)}
-                    className="bg-black hover:bg-zinc-800 text-white font-bold text-[10px] sm:text-xs py-1.5 sm:py-2 px-3 sm:px-4 rounded transition-colors cursor-pointer flex items-center gap-1.5 self-stretch sm:self-auto justify-center animate-pulse"
+                    className="bg-black hover:bg-zinc-800 text-white font-bold text-[10px] sm:text-xs py-1.5 sm:py-2 px-3 sm:px-4 rounded transition-colors cursor-pointer flex items-center gap-1.5 self-stretch sm:self-auto justify-center"
                   >
                     <Plus className="w-4 h-4" />
                     {showAddService ? 'Close Form' : 'Add Service'}
