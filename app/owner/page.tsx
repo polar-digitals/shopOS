@@ -8,20 +8,14 @@ import {
 import { 
   Plus, 
   Trash2, 
-  DollarSign, 
-  TrendingUp, 
-  TrendingDown, 
-  Users, 
-  Scissors, 
-  CreditCard,
-  Check,
-  UserCheck,
-  Home,
   Pencil,
   Menu,
   X,
-  BarChart3,
-  LogOut
+  LogOut,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Users
 } from 'lucide-react';
 
 import { useRouter } from 'next/navigation';
@@ -241,11 +235,11 @@ export default function ShopOSDashboard() {
 
   // Tabs structure definition
   const tabs = [
-    { id: 'overview', label: 'Overview', icon: <Home className="w-3.5 h-3.5" /> },
-    { id: 'catalog', label: 'Catalog', icon: <Check className="w-3.5 h-3.5" /> },
-    { id: 'expenses', label: 'Expenses', icon: <CreditCard className="w-3.5 h-3.5" /> },
-    { id: 'staff', label: 'Staff', icon: <Users className="w-3.5 h-3.5" /> },
-    { id: 'services', label: 'Services', icon: <Scissors className="w-3.5 h-3.5" /> },
+    { id: 'overview', label: 'Overview' },
+    { id: 'catalog', label: 'Catalog' },
+    { id: 'expenses', label: 'Expenses' },
+    { id: 'staff', label: 'Staff' },
+    { id: 'services', label: 'Services' },
   ];
 
   // Loading state
@@ -278,7 +272,7 @@ export default function ShopOSDashboard() {
     <div className="min-h-screen bg-white text-black font-sans antialiased pt-0 px-4 pb-4 sm:pt-0 sm:px-12 sm:pb-12 md:pt-0 md:px-16 md:pb-16 flex flex-col">
       
       {/* Top Transparent Navbar with ShopOS brand built-in */}
-      <div className="sticky top-0 z-50 bg-white max-w-7xl mx-auto w-full pt-4 pb-4 mb-4 sm:pt-6 sm:pb-6 sm:mb-8 border-b border-zinc-100">
+      <div className="relative z-50 bg-white max-w-7xl mx-auto w-full pt-4 pb-4 mb-4 sm:pt-6 sm:pb-6 sm:mb-8 border-b border-zinc-100">
         <div className="flex items-center w-full">
           {/* Logo Container (Left) */}
           <div className="flex-1 flex justify-start">
@@ -297,13 +291,12 @@ export default function ShopOSDashboard() {
                     id={`tab-btn-${tab.id}`}
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as any)}
-                    className={`relative px-4 py-2 text-xs border-0 rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1.5 z-10 outline-none ${
+                    className={`relative px-4 py-2 text-xs border-0 rounded-full transition-all duration-200 cursor-pointer z-10 outline-none ${
                       isActive 
                         ? 'text-zinc-950 font-black' 
                         : 'text-zinc-500 hover:text-zinc-950 font-medium'
                     }`}
                   >
-                    {tab.icon}
                     <span>{tab.label}</span>
                   </button>
                 );
@@ -354,13 +347,12 @@ export default function ShopOSDashboard() {
                       setActiveTab(tab.id as any);
                       setMobileMenuOpen(false);
                     }}
-                    className={`w-full px-4 py-2 sm:px-5 sm:py-3 text-xs sm:text-sm flex items-center gap-2 sm:gap-3 transition-all duration-200 cursor-pointer outline-none rounded-xl ${
+                    className={`w-full px-4 py-2 sm:px-5 sm:py-3 text-xs sm:text-sm transition-all duration-200 cursor-pointer outline-none rounded-xl ${
                       isActive 
                         ? 'text-zinc-950 font-black' 
                         : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-950 font-medium'
                     }`}
                   >
-                    {tab.icon}
                     <span>{tab.label}</span>
                   </button>
                 );
@@ -532,8 +524,7 @@ export default function ShopOSDashboard() {
               <div className="flex flex-col gap-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 border-b border-zinc-100 pb-3 sm:pb-5">
                   <div>
-                    <h3 className="text-xl sm:text-2xl font-black text-black flex items-center gap-1.5 sm:gap-2">
-                      <Scissors className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <h3 className="text-xl sm:text-2xl font-black text-black">
                       Catalog
                     </h3>
                     <p className="text-zinc-500 text-[10px] sm:text-xs mt-1">
@@ -676,8 +667,7 @@ export default function ShopOSDashboard() {
               <div className="flex flex-col gap-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 border-b border-zinc-100 pb-3 sm:pb-5">
                   <div>
-                    <h3 className="text-xl sm:text-2xl font-black text-black flex items-center gap-1.5 sm:gap-2">
-                      <CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <h3 className="text-xl sm:text-2xl font-black text-black">
                       Expenses
                     </h3>
                     <p className="text-zinc-500 text-[10px] sm:text-xs mt-1">
@@ -835,8 +825,7 @@ export default function ShopOSDashboard() {
               <div className="flex flex-col gap-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 border-b border-zinc-100 pb-3 sm:pb-5">
                   <div>
-                    <h3 className="text-xl sm:text-2xl font-black text-black flex items-center gap-1.5 sm:gap-2">
-                      <Users className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <h3 className="text-xl sm:text-2xl font-black text-black">
                       Staff
                     </h3>
                     <p className="text-zinc-500 text-[10px] sm:text-xs mt-1">
@@ -1061,8 +1050,7 @@ export default function ShopOSDashboard() {
               <div className="flex flex-col gap-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 border-b border-zinc-100 pb-3 sm:pb-5">
                   <div>
-                    <h3 className="text-xl sm:text-2xl font-black text-black flex items-center gap-1.5 sm:gap-2">
-                      <Scissors className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <h3 className="text-xl sm:text-2xl font-black text-black">
                       Services
                     </h3>
                     <p className="text-zinc-500 text-[10px] sm:text-xs mt-1">

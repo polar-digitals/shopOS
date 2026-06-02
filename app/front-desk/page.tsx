@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Scissors, Pencil, X, LogOut } from 'lucide-react';
+import { Plus, Pencil, X, LogOut } from 'lucide-react';
 import { useShopData, type Sale } from '@/hooks/useShopData';
 import { createClient } from '@/lib/supabaseClient';
 
@@ -146,8 +146,7 @@ export default function FrontDeskDashboard() {
         >
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 border-b border-zinc-100 pb-3 sm:pb-5">
             <div>
-              <h3 className="text-xl sm:text-2xl font-black text-black flex items-center gap-1.5 sm:gap-2">
-                <Scissors className="w-4 h-4 sm:w-5 sm:h-5" />
+              <h3 className="text-xl sm:text-2xl font-black text-black">
                 Catalog
               </h3>
               <p className="text-zinc-500 text-[10px] sm:text-xs mt-1">
@@ -237,11 +236,11 @@ export default function FrontDeskDashboard() {
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-zinc-100 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider bg-zinc-50/55 text-zinc-600">
-                  <th className="py-2 px-2 sm:py-3 sm:px-4">Service Done</th>
-                  <th className="py-2 px-2 sm:py-3 sm:px-4">Worker Assigned</th>
+                  <th className="py-2 px-2 sm:py-3 sm:px-4">Service</th>
+                  <th className="py-2 px-2 sm:py-3 sm:px-4">Worker</th>
                   <th className="py-2 px-2 sm:py-3 sm:px-4 font-mono hidden sm:table-cell">Date</th>
                   <th className="py-2 px-2 sm:py-3 sm:px-4 text-right">Price</th>
-                  <th className="py-2 px-2 sm:py-3 sm:px-4 text-center">Actions</th>
+                  <th className="py-2 px-2 sm:py-3 sm:px-4 text-center">Remove</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
