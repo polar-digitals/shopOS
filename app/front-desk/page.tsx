@@ -146,7 +146,7 @@ export default function FrontDeskDashboard() {
         >
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 border-b border-zinc-100 pb-3 sm:pb-5">
             <div>
-              <h3 className="text-xl sm:text-2xl font-black text-black">
+              <h3 className="text-lg sm:text-xl font-black text-black">
                 Catalog
               </h3>
               <p className="text-zinc-500 text-[10px] sm:text-xs mt-1">
