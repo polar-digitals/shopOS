@@ -359,7 +359,7 @@ export default function ShopOSDashboard() {
               })}
               <button
                 onClick={handleLogout}
-                className="w-full px-4 py-2 sm:px-5 sm:py-3 text-xs sm:text-sm flex items-center gap-2 sm:gap-3 transition-all duration-200 cursor-pointer outline-none rounded-xl text-zinc-500 hover:bg-zinc-50 hover:text-red-600 font-medium mt-2 border-t border-zinc-100"
+                className="w-full px-4 py-2 sm:px-5 sm:py-3 text-xs sm:text-sm flex items-center justify-center gap-2 sm:gap-3 transition-all duration-200 cursor-pointer outline-none rounded-xl text-zinc-500 hover:bg-zinc-50 hover:text-red-600 font-medium mt-2 border-t border-zinc-100"
               >
                 <LogOut className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" />
                 <span className="text-red-600">Log out</span>
